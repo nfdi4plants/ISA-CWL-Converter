@@ -1,14 +1,25 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.30114.105
+# Visual Studio Version 17
+VisualStudioVersion = 17.3.32819.101
 MinimumVisualStudioVersion = 10.0.40219.1
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "ISA-CWL-Converter", "src\ISA-CWL-Converter\ISA-CWL-Converter.fsproj", "{1E7C2F41-6BAA-4DA7-8E17-9826A88B77C3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1E7C2F41-6BAA-4DA7-8E17-9826A88B77C3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1E7C2F41-6BAA-4DA7-8E17-9826A88B77C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1E7C2F41-6BAA-4DA7-8E17-9826A88B77C3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1E7C2F41-6BAA-4DA7-8E17-9826A88B77C3}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1B38212B-F0E3-4452-8791-45B73CCA5A6D}
 	EndGlobalSection
 EndGlobal

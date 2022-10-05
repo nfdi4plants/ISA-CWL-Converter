@@ -1,4 +1,22 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+  	<TargetFrameworks>net6.0</TargetFrameworks>
+  	<RootNamespace>ISA-CWL-Converter</RootNamespace>
+  	<AssemblyName>ISA-CWL-Converter</AssemblyName>
+  	<Name>ISA-CWL-Converter</Name>
+  	<OutputType>Library</OutputType>
+  </PropertyGroup>
+  <PropertyGroup>
+  	<Authors>Adrian Zimmer, Jonathan Ott</Authors>
+  	<Description>Converter between ISA and CWL</Description>
+  	<Summary>Converter between ISA and CWL</Summary>
+  	<PackageLicenseExpression>MIT</PackageLicenseExpression>
+  	<PackageProjectUrl>https://nfdi4plants.github.io/ISA-CWL-Converter/</PackageProjectUrl>
+
+  	<PackageTags>fsharp dotnet workflows cwl</PackageTags>
+  	<RepositoryUrl>https://github.com/nfdi4plants/ISA-CWL-Converter</RepositoryUrl>
+  	<RepositoryType>git</RepositoryType>
+  </PropertyGroup>
 
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
@@ -8,5 +26,8 @@
   <ItemGroup>
     <Compile Include="Library.fs" />
   </ItemGroup>
-
+  <ItemGroup>
+	<PackageReference Include="CWLDotNet" Version="0.1.0" />
+	<PackageReference Include="ISADotNet.XLSX" Version="0.6.0" />
+  </ItemGroup>
 </Project>
