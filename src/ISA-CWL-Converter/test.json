@@ -1,0 +1,29 @@
+{
+    "id": "Tabelle1",
+    "class": "CommandLineTool",
+    "inputs": [
+        {
+            "id": "input",
+            "type": "File",
+            "inputBinding": {
+                "position": 0,
+                "prefix": "--file"
+            }
+        }
+    ],
+    "outputs": [
+        {
+            "id": "out",
+            "type": "File",
+            "outputBinding": {
+                "glob": "*.txt"
+            }
+        }
+    ],
+    "requirements": [],
+    "cwlVersion": "v1.2",
+    "baseCommand": [
+        "tar",
+        "--extract"
+    ]
+}

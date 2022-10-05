@@ -3,10 +3,10 @@
 module Converter =
 
     open System.IO
-    open System
     open System.Collections.Generic
-
-    let assayFileUri = new Uri (Path.GetFullPath @"D:\Code\Dataplant\IsaToCwl\data\isa.assay.neu.xlsx")
+    open ISADotNet.XLSX
+    open ISADotNet
+    open ISADotNet.QueryModel
 
     type CWLType =
     | File
@@ -111,11 +111,8 @@ module Converter =
         let extension = "*" + Path.GetExtension output;
         let output: CWLOutput = {id="out"; glob=extension; outputType=CWLType.File }
         output
-    
 
-    let assay = readAssayFromFile assayFileUri.AbsolutePath
-
-    let tools =
+    let generateTools (assay:ISADotNet.QueryModel.QProcessSequence) =
         assay.Sheets
         |> List.fold (fun x y ->
             let baseCommand = getBaseCommandFromSheet y
@@ -126,9 +123,3 @@ module Converter =
             let cwlTool = generateCWLCommandLineTool y.SheetName baseCommand.Value inputParams reqs [output]
             List.append x [cwlTool]
         ) []
-
-    open System.Text.Json
-
-    let fewf = tools.Head.Save()
-    let x = JsonSerializer.Serialize fewf
-    File.WriteAllText (@".\test.json", x) |> ignore
