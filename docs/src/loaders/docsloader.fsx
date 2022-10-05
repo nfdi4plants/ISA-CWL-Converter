@@ -29,7 +29,7 @@ let loader (projectRoot: string) (siteContent: SiteContents) =
             #if WATCH
             Nfdi4Plants.Docs.loadFile(projectRoot, contentDir, filePath)
             #else
-            Nfdi4Plants.Docs.loadFile(projectRoot, contentDir, filePath, productionBasePath = "placeholder")
+            Nfdi4Plants.Docs.loadFile(projectRoot, contentDir, filePath, productionBasePath = "ISA-CWL-Converter")
             #endif
         files 
         |> Array.map loadDocs
