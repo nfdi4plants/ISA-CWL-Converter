@@ -1,5 +1,5 @@
 ﻿namespace ISA_CWL_Converter
-
+#nowarn "3391"
 module Converter =
 
     open System.IO
@@ -7,6 +7,7 @@ module Converter =
     open ISADotNet.XLSX
     open ISADotNet
     open ISADotNet.QueryModel
+    open FSharpAux
 
     type CWLType =
     | File
@@ -14,11 +15,31 @@ module Converter =
 
     type CWLInput = {id: string; position: int; prefix: string; inputType: CWLType }
     type CWLOutput = {id: string; glob: string; outputType: CWLType }
-    type cwlreq = OneOf.OneOf<CWLDotNet.InlineJavascriptRequirement, CWLDotNet.SchemaDefRequirement, CWLDotNet.LoadListingRequirement, CWLDotNet.DockerRequirement, CWLDotNet.SoftwareRequirement, CWLDotNet.InitialWorkDirRequirement, CWLDotNet.EnvVarRequirement, CWLDotNet.ShellCommandRequirement, CWLDotNet.ResourceRequirement, CWLDotNet.WorkReuse, CWLDotNet.NetworkAccess, CWLDotNet.InplaceUpdateRequirement, CWLDotNet.ToolTimeLimit, CWLDotNet.SubworkflowFeatureRequirement, CWLDotNet.ScatterFeatureRequirement, CWLDotNet.MultipleInputFeatureRequirement, CWLDotNet.StepInputExpressionRequirement>
+
+    type cwlreq = 
+        OneOf.OneOf<
+            CWLDotNet.InlineJavascriptRequirement,
+            CWLDotNet.SchemaDefRequirement,
+            CWLDotNet.LoadListingRequirement,
+            CWLDotNet.DockerRequirement,
+            CWLDotNet.SoftwareRequirement,
+            CWLDotNet.InitialWorkDirRequirement,
+            CWLDotNet.EnvVarRequirement,
+            CWLDotNet.ShellCommandRequirement,
+            CWLDotNet.ResourceRequirement,
+            CWLDotNet.WorkReuse,
+            CWLDotNet.NetworkAccess,
+            CWLDotNet.InplaceUpdateRequirement,
+            CWLDotNet.ToolTimeLimit,
+            CWLDotNet.SubworkflowFeatureRequirement,
+            CWLDotNet.ScatterFeatureRequirement,
+            CWLDotNet.MultipleInputFeatureRequirement,
+            CWLDotNet.StepInputExpressionRequirement
+        >
 
     let mapStringToCWLReq (req: string) (value: string) : cwlreq =
         match req with 
-        | "NetworkAccess" ->CWLDotNet.NetworkAccess(networkAccess= true)
+        | "NetworkAccess" -> CWLDotNet.NetworkAccess(networkAccess= true)
         | "InitialWorkDir" -> CWLDotNet.InitialWorkDirRequirement(listing="")
         | _ -> failwith "Error, wrong req"
 
@@ -28,22 +49,52 @@ module Converter =
 
     let generateCWLCommandLineTool (id:string) (baseCommand:string[]) (inputs: seq<CWLInput>) (reqs : List<cwlreq>) (outputs: seq<CWLOutput>)=
         let cwlInputs =
-            inputs |>
-            Seq.map(fun x ->
+            inputs 
+            |> Seq.map(fun x ->
                 CWLDotNet.CommandInputParameter(``type``=CWLDotNet.CWLType.FILE, id=x.id, inputBinding=CWLDotNet.CommandLineBinding(position=x.position, prefix =x.prefix))
             )
             |> Seq.toList
         let cwlOutputs =
-            outputs |>
-            Seq.map(fun x ->
+            outputs
+            |> Seq.map(fun x ->
                 CWLDotNet.CommandOutputParameter(``type``= CWLDotNet.CWLType.FILE, id=x.id, outputBinding=CWLDotNet.CommandOutputBinding(glob=x.glob))
             )
             |> Seq.toList
         let clt: CWLDotNet.CommandLineTool = CWLDotNet.CommandLineTool(id=id, baseCommand=new ResizeArray<string>(baseCommand), inputs=ResizeArray<CWLDotNet.CommandInputParameter>cwlInputs, outputs=ResizeArray<CWLDotNet.CommandOutputParameter>cwlOutputs, cwlVersion=CWLDotNet.CWLVersion.V1_2, requirements=reqs)
         clt
 
+    let commonSubstring (names: string list) =
+        let first' = names |> List.tryFind (fun _ -> true)
+        let isWhiteSpace = System.String.IsNullOrWhiteSpace
+    
+        let mapper substringLength (first:string) currentStrings offset =
+            if substringLength + offset <= first.Length then
+                let currentSubstring = first.Substring(offset, substringLength)
+                if not(isWhiteSpace(currentSubstring)) &&
+                   not(currentStrings |> List.exists(fun f -> f = currentSubstring)) then
+                    currentSubstring :: currentStrings
+                else currentStrings
+            else
+                currentStrings
+
+        match first' with
+        | Some(first) ->
+            [first.Length - 1 .. -1 .. 0]
+            |> List.map(fun substringLength ->
+                [0 .. first.Length]
+                |> List.fold (mapper substringLength first) List.Empty)
+            |> List.concat
+            |> List.sortBy(fun s -> s)
+            |> List.sortBy(fun s -> -s.Length)
+            |> List.filter(fun s -> names |> Seq.forall(fun c -> c.Contains(s)))
+        | None -> List.empty
+        
     let getBaseCommandFromSheet (sheet: ISADotNet.QueryModel.QSheet) =
-        let baseCommandList = (sheet.Values.Components "BaseCommand").Values().Values
+        let baseCommandList = 
+            (sheet.Values.Components "BaseCommand").Values().Values
+            |> List.distinct
+        if baseCommandList.Length <> 1 then
+            raise (System.Exception("Error, BaseCommand is not unique"))
         match baseCommandList with
         | baseCommandList when baseCommandList.Length > 0 ->
             match baseCommandList.Head with
@@ -104,12 +155,12 @@ module Converter =
                 | None -> x
             )[]
         ResizeArray<cwlreq> reqs
-
+        
     let getOutputFromSheet (sheet: ISADotNet.QueryModel.QSheet) = 
         let outputs = sheet.Outputs
-        let output, _ = outputs.Head
-        let extension = "*" + Path.GetExtension output;
-        let output: CWLOutput = {id="out"; glob=extension; outputType=CWLType.File }
+        let output = outputs |> List.map fst
+        let commonString = "*" + (commonSubstring output)[0] + "*"
+        let output: CWLOutput = {id="out"; glob=commonString; outputType=CWLType.File }
         output
 
     let generateTools (assay:ISADotNet.QueryModel.QProcessSequence) =
