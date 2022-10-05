@@ -23,5 +23,7 @@
   <ItemGroup>
 	<PackageReference Include="CWLDotNet" Version="0.1.0" />
 	<PackageReference Include="ISADotNet.XLSX" Version="0.6.0" />
+	<PackageReference Include="ISADotNet" Version="0.6.0" />
+	<PackageReference Include="ISADotNet.QueryModel" Version="0.6.0" />
   </ItemGroup>
 </Project>
