@@ -61,22 +61,22 @@ let runDotNet cmd workingDir =
 /// Metadata about the project
 module ProjectInfo = 
 
-    let project = "LibraryExample"
+    let project = "ISA-CWL-Converter"
 
-    let summary = "An example Library"
+    let summary = "Converter from ISA to CWL"
 
     let configuration = "Release"
 
     // Git configuration (used for publishing documentation in gh-pages branch)
     // The profile where the project is posted
-    let gitOwner = "YourGitProfile"
-    let gitName = "YourNameHere"
+    let gitOwner = "nfdi4plants"
+    let gitName = "ISA-CWL-Converter"
 
     let gitHome = sprintf "%s/%s" "https://github.com" gitOwner
 
     let projectRepo = sprintf "%s/%s/%s" "https://github.com" gitOwner gitName
 
-    let website = "/YourNameHere"
+    let website = "/ISA-CWL-Converter"
 
     let pkgDir = "pkg"
 
