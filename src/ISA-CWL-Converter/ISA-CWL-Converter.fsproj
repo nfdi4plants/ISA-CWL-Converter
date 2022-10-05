@@ -17,12 +17,6 @@
   	<RepositoryUrl>https://github.com/nfdi4plants/ISA-CWL-Converter</RepositoryUrl>
   	<RepositoryType>git</RepositoryType>
   </PropertyGroup>
-
-  <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
-    <RootNamespace>ISA_CWL_Converter</RootNamespace>
-  </PropertyGroup>
-
   <ItemGroup>
     <Compile Include="Library.fs" />
   </ItemGroup>
