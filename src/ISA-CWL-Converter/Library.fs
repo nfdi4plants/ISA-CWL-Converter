@@ -8,13 +8,16 @@ module Converter =
     open ISADotNet
     open ISADotNet.QueryModel
     open FSharpAux
+    open Newtonsoft.Json
 
-    type CWLType =
-    | File
-    | Number
 
-    type CWLInput = {id: string; position: int; prefix: string; inputType: CWLType }
-    type CWLOutput = {id: string; glob: string; outputType: CWLType }
+    type CWLDataType =
+        | ArrayIn of CWLDotNet.CommandInputArraySchema
+        | ArrayOut of CWLDotNet.CommandOutputArraySchema
+        | Single of CWLDotNet.CWLType
+    
+    type CWLInput = {id: string; position: int; prefix: string; inputType: CWLDataType }
+    type CWLOutput = {id: string; glob: string; outputType: CWLDataType }
 
     type cwlreq = 
         OneOf.OneOf<
@@ -37,27 +40,49 @@ module Converter =
             CWLDotNet.StepInputExpressionRequirement
         >
 
-    let mapStringToCWLReq (req: string) (value: string) : cwlreq =
+    let mapStringToCWLReq (req: string) (value: string option) : cwlreq =
         match req with 
         | "NetworkAccess" -> CWLDotNet.NetworkAccess(networkAccess= true)
-        | "InitialWorkDir" -> CWLDotNet.InitialWorkDirRequirement(listing="")
+        | "InitialWorkDirRequirement" -> 
+            let dirent = JsonConvert.DeserializeObject<List<CWLDotNet.Dirent>> value.Value
+            let listing = new List<OneOf.OneOf<OneOf.Types.None, CWLDotNet.Dirent, System.String, CWLDotNet.File, CWLDotNet.Directory, List<OneOf.OneOf<CWLDotNet.File, CWLDotNet.Directory>>>>()
+            printfn "%A" (dirent.Item 0)
+            listing.Add (dirent.Item 0)
+            printfn "%A" (listing.Item 0)
+            printfn "aaaa"
+            CWLDotNet.InitialWorkDirRequirement(listing = listing)
+        | "DockerRequirement" -> JsonConvert.DeserializeObject<CWLDotNet.DockerRequirement> value.Value
         | _ -> failwith "Error, wrong req"
 
     let readAssayFromFile (path: string) : ISADotNet.QueryModel.QProcessSequence =
         let _, assay = ISADotNet.XLSX.AssayFile.Assay.fromFile path
         ISADotNet.QueryModel.QAssay.fromAssay assay
 
+    let createCommandInputParameter cwlInput =
+        match cwlInput.inputType with
+        | Single x ->
+            CWLDotNet.CommandInputParameter(``type``= x, id=cwlInput.id, inputBinding=CWLDotNet.CommandLineBinding(position=cwlInput.position, prefix =cwlInput.prefix))
+        | ArrayIn x -> 
+            CWLDotNet.CommandInputParameter(``type``= x, id=cwlInput.id, inputBinding=CWLDotNet.CommandLineBinding(position=cwlInput.position, prefix =cwlInput.prefix))
+
+    let createCommandOutputParameter cwlOutput =
+        match cwlOutput.outputType with
+        | Single x ->
+            CWLDotNet.CommandOutputParameter(``type``= x, id=cwlOutput.id, outputBinding=CWLDotNet.CommandOutputBinding(glob=cwlOutput.glob))
+        | ArrayOut x -> 
+            CWLDotNet.CommandOutputParameter(``type``= x, id=cwlOutput.id, outputBinding=CWLDotNet.CommandOutputBinding(glob=cwlOutput.glob))
+            
     let generateCWLCommandLineTool (id:string) (baseCommand:string[]) (inputs: seq<CWLInput>) (reqs : List<cwlreq>) (outputs: seq<CWLOutput>)=
         let cwlInputs =
             inputs 
             |> Seq.map(fun x ->
-                CWLDotNet.CommandInputParameter(``type``=CWLDotNet.CWLType.FILE, id=x.id, inputBinding=CWLDotNet.CommandLineBinding(position=x.position, prefix =x.prefix))
+                createCommandInputParameter x
             )
             |> Seq.toList
         let cwlOutputs =
             outputs
             |> Seq.map(fun x ->
-                CWLDotNet.CommandOutputParameter(``type``= CWLDotNet.CWLType.FILE, id=x.id, outputBinding=CWLDotNet.CommandOutputBinding(glob=x.glob))
+                createCommandOutputParameter x
             )
             |> Seq.toList
         let clt: CWLDotNet.CommandLineTool = CWLDotNet.CommandLineTool(id=id, baseCommand=new ResizeArray<string>(baseCommand), inputs=ResizeArray<CWLDotNet.CommandInputParameter>cwlInputs, outputs=ResizeArray<CWLDotNet.CommandOutputParameter>cwlOutputs, cwlVersion=CWLDotNet.CWLVersion.V1_2, requirements=reqs)
@@ -108,12 +133,24 @@ module Converter =
 
     let getMainFileInputFromSheet (sheet: ISADotNet.QueryModel.QSheet) =
         let prefixCharacteristic = (sheet.Item 0).Characteristics().Characteristics("Prefix").Values.Head
+        let inputTypeCharacteristic = (sheet.Item 0).Characteristics().Characteristics("InputType").Values.Head
         let prefix =
             match prefixCharacteristic with
             | ISADotNet.QueryModel.ISAValue.Characteristic char ->
                 char.ValueText
             | _ -> failwith "Error, no characteristic" // Should never happen?
-        { id = "input"; position = 0; prefix= prefix; inputType=CWLType.File}
+        let inputType =
+            match inputTypeCharacteristic with
+            | ISADotNet.QueryModel.ISAValue.Characteristic char ->
+                char.ValueText
+            | _ -> failwith "Error, no inputType" // Should never happen?
+            |> fun input ->
+                match input with
+                | "File" -> CWLDotNet.CWLType.FILE
+                | "Int" -> CWLDotNet.CWLType.INT
+                | "Directory" -> CWLDotNet.CWLType.DIRECTORY
+                | _ -> failwith "Error, wrong inputType"      
+        { id = "input"; position = 0; prefix= prefix; inputType= Single inputType}
 
     let getInputParamtersFromSheet (sheet: ISADotNet.QueryModel.QSheet) =
         let isaParams = (sheet.Item 0).Parameters()
@@ -125,8 +162,16 @@ module Converter =
                     let id = param.NameText
                     let position = index + 1
                     let prefix = (param.ValueText.Split ' ').[0]
-                    let inputType = CWLType.File // TODO: Type via Unit
-                    {id=id; position = position; prefix=prefix; inputType=inputType}
+                    let inputType = 
+                        printfn $"{param.ValueWithUnitText}"
+                        (param.ValueWithUnitText.Split ' ').[2]
+                        |> fun input ->
+                            match input with
+                            | "File" -> CWLDotNet.CWLType.FILE
+                            | "Int" -> CWLDotNet.CWLType.INT
+                            | "Directory" -> CWLDotNet.CWLType.DIRECTORY
+                            | _ -> failwith "Error, wrong inputType"
+                    {id=id; position = position; prefix=prefix; inputType= Single inputType}
                 | _ -> failwith "Error, no param" // Should never happen?
             )
         inputParams
@@ -140,7 +185,7 @@ module Converter =
                     match y with
                     | ISADotNet.QueryModel.ISAValue.Component comp ->
                         printfn "%s" comp.NameText
-                        if comp.NameText.StartsWith "SoftwareRequirement" then
+                        if comp.NameText.StartsWith "Requirement" then
                             Some(comp)
                         else
                             None
@@ -149,9 +194,8 @@ module Converter =
                 | Some comp -> 
                     let split = comp.NameText.Split('[')[1]
                     let req = split.Substring(0, split.Length-1)
-                    let newReq = mapStringToCWLReq req comp.ValueText
-                    let newX = x |> List.append([newReq])
-                    newX
+                    let newReq = mapStringToCWLReq req comp.ComponentName
+                    newReq::x
                 | None -> x
             )[]
         ResizeArray<cwlreq> reqs
@@ -160,7 +204,7 @@ module Converter =
         let outputs = sheet.Outputs
         let output = outputs |> List.map fst
         let commonString = "*" + (commonSubstring output)[0] + "*"
-        let output: CWLOutput = {id="out"; glob=commonString; outputType=CWLType.File }
+        let output: CWLOutput = {id="out"; glob=commonString; outputType=ArrayOut (CWLDotNet.CommandOutputArraySchema(items = CWLDotNet.CWLType.FILE, ``type`` = CWLDotNet.enum_d062602be0b4b8fd33e69e29a841317b6ab665bc.ARRAY)) }
         output
 
     let generateTools (assay:ISADotNet.QueryModel.QProcessSequence) =
@@ -172,5 +216,5 @@ module Converter =
             let inputParams = getInputParamtersFromSheet y |> Seq.append [mainFileInput]
             let output = getOutputFromSheet y
             let cwlTool = generateCWLCommandLineTool y.SheetName baseCommand.Value inputParams reqs [output]
-            List.append x [cwlTool]
+            cwlTool::x
         ) []

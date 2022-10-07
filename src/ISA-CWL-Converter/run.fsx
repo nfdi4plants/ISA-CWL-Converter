@@ -1,19 +1,28 @@
 #r @".\bin\Release\net6.0\ISA-CWL-Converter.dll"
 #r @"nuget: ISADotNet.XLSX"
+#r @"nuget: ISADotNet"
 #r @"nuget: CWLDotnet"
+#r "nuget: ISADotNet.QueryModel, 0.6.0"
+#r "nuget: Newtonsoft.Json, 13.0.2-beta2"
 
 open System
 open System.IO
 open System.Text.Json
 open ISA_CWL_Converter
-let assayFileUri = new Uri (Path.GetFullPath @".\data\isa.assay.neu.xlsx")
+open System.IO
+open System.Collections.Generic
+open ISADotNet.XLSX
+open ISADotNet
+open ISADotNet.QueryModel
+
+let assayFileUri = new Uri (Path.GetFullPath @"C:\Users\jonat\OneDrive\Doktor\ISA-CWL-ConverterTest\test.xlsx")
 
 let assay = Converter.readAssayFromFile assayFileUri.AbsolutePath
 
 let tools = Converter.generateTools assay
 let fewf = tools.Head.Save()
 let x = JsonSerializer.Serialize fewf
-File.WriteAllText (@".\test.json", x) |> ignore
+File.WriteAllText (@".\test.cwl", x) |> ignore
 
 let commonSubstring (names: string[]) =
     let first' = names |> Seq.tryFind (fun _ -> true)
@@ -42,8 +51,15 @@ let commonSubstring (names: string[]) =
     | None -> Seq.empty
 
     
-(assay.Sheets[0].Values.Components "BaseCommand").Values().Values |> Seq.distinct
-    
+let b = assay.Sheets |> List.head
+
+(b.Item 0).Values().Components()
+|> Seq.item 0
+|> fun x -> 
+    match x with
+    | ISADotNet.QueryModel.ISAValue.Component comp ->
+        comp.ComponentName
+|> fun x -> Newtonsoft.Json.JsonConvert.DeserializeObject<CWLDotNet.DockerRequirement> x.Value
 let a =
     commonSubstring [|
         "08_1_10_2_sol_2.mzlite"
@@ -68,3 +84,8 @@ let a =
         "08_3_16_2_mem_1.mzlite"
     |]
     |> Seq.toArray
+    
+let fewf = Converter.generateTools assay
+fewf.Head.Save()
+|> JsonSerializer.Serialize
+|> fun x -> File.WriteAllText (@".\test.cwl",x)
